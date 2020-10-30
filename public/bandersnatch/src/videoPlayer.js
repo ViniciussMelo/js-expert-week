@@ -1,11 +1,13 @@
 class VideoMediaPlayer {
 
-    constructor({ manifestJSON, network }) {
+    constructor({ manifestJSON, network, videoComponent }) {
         this.manifestJSON = manifestJSON;
         this.network = network;
+        this.videoComponent = videoComponent;
 
         this.videoElement = null;
         this.sourceBuffer = null;
+        this.activeItem = {};
         this.selected = {};
         this.videoDuration = 0;
     }
@@ -39,7 +41,36 @@ class VideoMediaPlayer {
             // avoid runnig as live
             mediaSourse.duration = this.videoDuration;
             await this.fileDownload(selected.url);
+            
+            // call and pass the context 
+            setInterval(this.waitForQuestions.bind(this), 200);
         }
+    }
+
+    waitForQuestions() {
+        const currentTime = parseInt(this.videoElement.currentTime);
+        const option = this.selected.at === currentTime;
+        
+        if(!option) return;
+        // prevent the modal from appearing 2 times
+        if(this.activeItem.url === this.selected.url) return;
+
+        this.videoComponent.configureModal(this.selected.options);
+        this.activeItem = this.selected;
+    }
+
+    async nextChunk(data) {
+        const key = data.toLowerCase();
+        const selected = this.manifestJSON[key];
+        this.selected = {
+            ...selected,
+            // adjust the time the modal will appear based on the current time
+            at: parseInt(this.videoElement.currentTime + selected.at)
+        };
+
+        // leave the rest of the video running while downloading the new one
+        this.videoElement.play();
+        await this.fileDownload(selected.url);
     }
 
     async fileDownload(url){
@@ -58,7 +89,7 @@ class VideoMediaPlayer {
     setVideoPlayerDuration(finalUrl){
         const bars = finalUrl.split('/');
         const [name, videoDuration] = bars[bars.length - 1].split('-'); // take the duration => name/DURATION/resolution.extension
-        this.videoDuration += videoDuration;
+        this.videoDuration += parseFloat(videoDuration); // make the videoDuration as float and not a string
     }
 
     async processBufferSegments(allSegments){
@@ -73,7 +104,7 @@ class VideoMediaPlayer {
                 return resolve();
             }
 
-            sourceBuffer.addEventListener("updateend", () => updateEnd);
+            sourceBuffer.addEventListener("updateend", updateEnd);
             sourceBuffer.addEventListener("error", reject);
         })
     }
