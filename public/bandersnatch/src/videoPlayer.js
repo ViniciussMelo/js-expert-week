@@ -10,6 +10,7 @@ class VideoMediaPlayer {
         this.activeItem = {};
         this.selected = {};
         this.videoDuration = 0;
+        this.selections = [];
     }
 
     initializeCodec() {
@@ -59,6 +60,19 @@ class VideoMediaPlayer {
         this.activeItem = this.selected;
     }
 
+    // Get the smallest video, with the lowest resolution to calculate the throughput
+    async currentFileResolution() {
+        const LOWEST_RESOLUTION = 144;
+        const prepareUrl = {
+            url: this.manifestJSON.finalizar.url,
+            fileResolution: LOWEST_RESOLUTION,
+            fileResolutionTag: this.manifestJSON.fileResolutionTag,
+            hostTag: this.manifestJSON.hostTag
+        };
+
+        const url = this.network.parseManifestURL(prepareUrl);
+        return this.network.getProperResolution(url);    }
+
     async nextChunk(data) {
         const key = data.toLowerCase();
         const selected = this.manifestJSON[key];
@@ -67,16 +81,28 @@ class VideoMediaPlayer {
             // adjust the time the modal will appear based on the current time
             at: parseInt(this.videoElement.currentTime + selected.at)
         };
-
+        this.manageLag(this.selected);
         // leave the rest of the video running while downloading the new one
         this.videoElement.play();
         await this.fileDownload(selected.url);
     }
 
+    // make sure the video has been selected before
+    manageLag(selected) {
+        if(!!~this.selections.indexOf(selected.url)) {
+            selected.at += 5;
+            return;
+        }
+
+        this.selections.push(selected.url);
+    }
+    
     async fileDownload(url){
+        const fileResolution = await this.currentFileResolution();
+        console.log('fileResolution', fileResolution);
         const prepareUrl = {
             url,
-            fileResolution: 360,
+            fileResolution,
             fileResolutionTag: this.manifestJSON.fileResolutionTag,
             hostTag: this.manifestJSON.hostTag
         };
