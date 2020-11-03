@@ -1,2 +1,6 @@
 node_modules/
-assets/timeline/
+*.mp4
+!01.intro-1920x1080.mp4
+!02.guitarra-1920x1080.mp4
+!02.violao-1920x1080.mp4
+!03.encerramento-1920x1080.mp4
